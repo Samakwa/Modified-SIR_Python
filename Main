@@ -1,0 +1,127 @@
+import scipy.integrate as spi
+import numpy as np
+import pylab as pl
+import csv
+from numpy import zeros
+
+
+# Open a CSV file to write to
+openfile = open("Ebola_Results2.csv", "w")
+excelwriter = csv.writer(openfile)
+
+# Write the first row of the output file (a column for each population group)
+excelwriter.writerow(
+    ["Duration)", "Susceptible", "Susc_Vac", "Vaccinated", "Infected","Recovered", "R0", "R0F"])
+
+
+# Set model simulation time (in years)
+run_time = 20
+
+beta = 0.2 #GU= 0.22275, Sl= 0.2355, Li =0.1701
+mew = 0.1
+Vac_rate = 0.05  # Vaccination rate. Varies; 0, 0.005 and 0.01
+VacEffic = 0.5487  # Efficacy of Vaccination
+BetaFuneral_rate = 0.0445  # Transmission rate during funeral GU= 0.0445 Li=0.489, SL= 0.111
+GammaFuneral = 1  # Traditional Funeral Duration, GU,3.255 = 0.3072, Li,2.01 =0.4975, SL,4.5= 0.222
+
+
+R0V_GU_0 = 2.53  # Initial R0, Guinea =1.2552 , Li= 1.7994, SL= 1.6093 ## New values
+R0F_GU_0 = 2.53  ## Initial R0, Guinea =1.51 , Li= 1.7994, SL= 2.53
+#S = 460
+###
+# I = 0
+#R = 0
+
+# Set the initial number of people in the model
+N_GU_0 = 6092075   # population of the Country GU= 11745189 Li= 4294077, SL =6092075
+N_GU_0 = float(N_GU_0)
+
+# Set the initial proportion of the sub-groups
+S_GU_0 = 0.95   # Initial proportion of Susceptible
+I_GU_0 = 0.05    # Initial proportion of Infected
+R_GU_0 = 0  # Initial proportion of Recovered
+V_GU_0 = 0
+SV_GU_0 = 0
+
+
+S_GU = zeros((1, run_time))  # Susceptibles
+SV_GU = zeros((1, run_time))
+I_GU = zeros((1, run_time))  # Undiagnosed
+R_GU = zeros((1, run_time))  # Treated
+V_GU = zeros((1, run_time))  # Total
+ROV_GU = zeros((1, run_time))  # Reproduction Numb
+ROF_GU = zeros((1, run_time))  # Reproduction Numb
+
+N_GU = zeros((1, run_time))  # Total
+
+
+# Print which iteration we've run
+print
+'Running model...'
+
+# This loop simulates the model
+for j in range(run_time):
+
+    # On the first iteration, do this part
+    if j == 0:
+
+        # Define initial conditions...
+
+        # Total people in each population group
+        S_GU[0, j] = S_GU_0
+
+        # Susceptibles
+        V_GU[0, j] = V_GU_0
+        SV_GU[0,j] = SV_GU_0
+        I_GU[0, j] = I_GU_0
+        R_GU[0, j] = R_GU_0
+        ROV_GU[0, j] = R0V_GU_0
+        ROF_GU[0, j] = R0F_GU_0
+
+        # Write a new row for the initial conditions (same format as title row)
+        excelwriter.writerow([2017 + j, S_GU[0, j], SV_GU[0,j], V_GU[0, j], I_GU[0, j], R_GU[0, j], ROV_GU[0, j], ROF_GU[0, j]])
+
+    # On any other iteraction do this part
+    else:
+
+        i = j - 1  # Use the previous time point, were everything has been calculated
+
+        # Calculate difference equations...
+        # Calculate Susceptibles at time t+1
+
+        S_GU[0, j] = S_GU[0, i] - (beta * S_GU[0, i] * I_GU[0, i]) - Vac_rate * S_GU[0, i]
+
+        # Calculate Susceptible When Vaccination is Introduced, at time t+1
+        SV_GU[0,j] = SV_GU[0, i] -(Vac_rate * SV_GU[0,j])
+
+        # Calculate Vaccinated Population at time t+1
+        V_GU[0, j] = V_GU[0, i] + (Vac_rate * S_GU[0, i])- (beta * S_GU[0, i] * I_GU[0, i]* VacEffic * V_GU[0, i])
+        # Calculate Infected at time t+1
+        I_GU[0, j] = I_GU[0, i] + (beta * S_GU[0, i] * I_GU[0, i]) - (mew * I_GU[0, i])
+        #Calculate Number of Recovered Individuals at time t+1
+        R_GU[0, j] = R_GU[0, i] + (mew * I_GU[0, i]) + Vac_rate * S_GU[0, i]
+        # Calculate Basic Reproduction Number, R0, When Vaccination is Introduced
+        ROV_GU[0, j] = ROV_GU[0, i] - (Vac_rate * ROV_GU[0, i])
+        ROF_GU[0, j] = ROF_GU[0, i] - BetaFuneral_rate * GammaFuneral * ROF_GU[0, i]
+        #R0D[0, j] = R0D[0, i] + BetaGen_rate * (1 - GammaHosp) * R0D[0, i]
+        # ---------- end-else ---------------#
+
+
+
+        # Determine population size
+        #N_GU[0, j] = S_GU[0, j] + V_GU[0, j] + I_GU[0, j]+ R_GU[0, j]
+
+        # Write a new row on each iteration
+        with open("Ebola_Results2.csv", "a") as f:
+            writer = csv.writer(f)
+            writer.writerow([])
+            writer.writerow([2017 + j, S_GU[0, j], SV_GU[0,j], V_GU[0, j], I_GU[0, j], R_GU[0, j], ROV_GU[0, j], ROF_GU[0, j]])
+
+    # ---------- end-loop ---------------#
+
+    # Print which iteration we've run
+    print('Iteration %i completed' % j);
+
+    # Close the csv file
+    openfile.close();
+
